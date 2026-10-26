@@ -9,53 +9,45 @@ import SwiftUI
 import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @Environment(\.modelContext) private var context
+    @Query(sort: \Habit.sortOrder) private var habits: [Habit]
 
     var body: some View {
-        NavigationSplitView {
+        NavigationStack {
             List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
+                ForEach(habits) { habit in
+                    Text(habit.name)
                 }
-                .onDelete(perform: deleteItems)
+                .onDelete(perform: deleteHabits)
             }
+            .navigationTitle("Ripple Test")
+            
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Add Habit") {
+                        let habit = Habit(name: "Drink Water")
+                        context.insert(habit)
+                        try? context.save()
+                    }
                 }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
+
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Update Habit") {
+                        if let habit = habits.first {
+                            habit.name = "Exercise"
+                            try? context.save()
+                        }
                     }
                 }
             }
-        } detail: {
-            Text("Select an item")
+
         }
     }
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
+    private func deleteHabits(at offsets: IndexSet) {
+        for index in offsets {
+            context.delete(habits[index])
         }
+        try? context.save()
     }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
-            }
-        }
-    }
-}
-
-#Preview {
-    ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
 }

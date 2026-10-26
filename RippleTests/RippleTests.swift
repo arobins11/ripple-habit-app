@@ -6,33 +6,150 @@
 //
 
 import XCTest
+import SwiftData
 @testable import Ripple
 
+@MainActor
 final class RippleTests: XCTestCase {
 
+    var container: ModelContainer!
+    var context: ModelContext!
+
     override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
+        let schema = Schema([
+            Habit.self,
+            HabitCompletion.self,
+            JournalEntry.self,
+            UserPreferences.self
+        ])
+
+        let configuration = ModelConfiguration(
+            schema: schema,
+            isStoredInMemoryOnly: true
+        )
+
+        container = try ModelContainer(
+            for: schema,
+            configurations: [configuration]
+        )
+
+        context = container.mainContext
     }
 
     override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
+        context = nil
+        container = nil
     }
 
-    func testExample() throws {
-        // This is an example of a functional test case.
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // Any test you write for XCTest can be annotated as throws and async.
-        // Mark your test throws to produce an unexpected failure when your test encounters an uncaught error.
-        // Mark your test async to allow awaiting for asynchronous code to complete. Check the results with assertions afterwards.
-        // XCTest Documentation
-        // https://developer.apple.com/documentation/xctest
+    func testCreateHabit() throws {
+        let habit = Habit(name: "Drink Water")
+
+        context.insert(habit)
+        try context.save()
+
+        let habits = try context.fetch(
+            FetchDescriptor<Habit>()
+        )
+
+        XCTAssertEqual(habits.count, 1)
+        XCTAssertEqual(habits.first?.name, "Drink Water")
     }
 
-    func testPerformanceExample() throws {
-        // This is an example of a performance test case.
-        self.measure {
-            // Put the code you want to measure the time of here.
-        }
+    func testUpdateHabit() throws {
+        let habit = Habit(name: "Drink Water")
+
+        context.insert(habit)
+        try context.save()
+
+        habit.name = "Exercise"
+        try context.save()
+
+        let habits = try context.fetch(
+            FetchDescriptor<Habit>()
+        )
+
+        XCTAssertEqual(habits.first?.name, "Exercise")
     }
 
+    func testDeleteHabit() throws {
+        let habit = Habit(name: "Drink Water")
+
+        context.insert(habit)
+        try context.save()
+
+        context.delete(habit)
+        try context.save()
+
+        let habits = try context.fetch(
+            FetchDescriptor<Habit>()
+        )
+
+        XCTAssertTrue(habits.isEmpty)
+    }
+
+    func testHabitCompletion() throws {
+        let habit = Habit(name: "Exercise")
+        context.insert(habit)
+
+        let completion = HabitCompletion(
+            habitID: habit.id
+        )
+
+        context.insert(completion)
+        try context.save()
+
+        let completions = try context.fetch(
+            FetchDescriptor<HabitCompletion>()
+        )
+
+        XCTAssertEqual(completions.count, 1)
+        XCTAssertEqual(
+            completions.first?.habitID,
+            habit.id
+        )
+    }
+
+    func testJournalEntry() throws {
+        let entry = JournalEntry(
+            content: "Today was a good day.",
+            mood: 4
+        )
+
+        context.insert(entry)
+        try context.save()
+
+        let entries = try context.fetch(
+            FetchDescriptor<JournalEntry>()
+        )
+
+        XCTAssertEqual(entries.count, 1)
+        XCTAssertEqual(entries.first?.mood, 4)
+        XCTAssertEqual(
+            entries.first?.content,
+            "Today was a good day."
+        )
+    }
+
+    func testUserPreferences() throws {
+        let preferences = UserPreferences(
+            focusArea: "Fitness",
+            preferredReminderHour: 8,
+            preferredReminderMinute: 30,
+            hasCompletedOnboarding: true
+        )
+
+        context.insert(preferences)
+        try context.save()
+
+        let saved = try context.fetch(
+            FetchDescriptor<UserPreferences>()
+        )
+
+        XCTAssertEqual(saved.count, 1)
+        XCTAssertEqual(saved.first?.focusArea, "Fitness")
+        XCTAssertEqual(saved.first?.preferredReminderHour, 8)
+        XCTAssertTrue(
+            saved.first?.hasCompletedOnboarding == true
+        )
+    }
 }
