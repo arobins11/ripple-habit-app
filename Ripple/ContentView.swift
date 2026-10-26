@@ -21,7 +21,6 @@ struct ContentView: View {
                 .onDelete(perform: deleteHabits)
             }
             .navigationTitle("Ripple Test")
-            
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Add Habit") {
@@ -40,7 +39,6 @@ struct ContentView: View {
                     }
                 }
             }
-
         }
     }
 
@@ -51,3 +49,4 @@ struct ContentView: View {
         try? context.save()
     }
 }
+
