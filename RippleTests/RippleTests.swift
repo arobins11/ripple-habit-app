@@ -7,6 +7,7 @@
 
 import XCTest
 import SwiftData
+import UserNotifications
 @testable import Ripple
 
 @MainActor
@@ -152,4 +153,166 @@ final class RippleTests: XCTestCase {
             saved.first?.hasCompletedOnboarding == true
         )
     }
+
+    func testDailyReminderScheduling() async throws {
+        let habit = Habit(
+            name: "Drink Water",
+            frequency: "Daily",
+            reminderEnabled: true,
+            reminderHour: 9,
+            reminderMinute: 30
+        )
+
+        let service = NotificationService.shared
+
+        // Clear reminders before testing
+        service.cancelReminders(for: habit)
+
+        // Schedule the daily reminder
+        try await service.scheduleReminder(for: habit)
+
+        // Give the notification center time to update
+        try await Task.sleep(for: .milliseconds(500))
+
+        // Get the scheduled notifications
+        let requests = await UNUserNotificationCenter.current()
+            .pendingNotificationRequests()
+
+        let reminderID = "\(habit.id.uuidString)-daily"
+
+        // Debugging information
+        print("Pending notifications: \(requests.count)")
+        print("Expected reminder ID: \(reminderID)")
+
+        for request in requests {
+            print("Found reminder: \(request.identifier)")
+        }
+
+        // Find the daily reminder
+        let reminder = try XCTUnwrap(
+            requests.first { $0.identifier == reminderID }
+        )
+
+        let trigger = try XCTUnwrap(
+            reminder.trigger as? UNCalendarNotificationTrigger
+        )
+
+        // Verify the reminder time
+        XCTAssertEqual(trigger.dateComponents.hour, 9)
+        XCTAssertEqual(trigger.dateComponents.minute, 30)
+        XCTAssertTrue(trigger.repeats)
+
+        // Clean up after testing
+        service.cancelReminders(for: habit)
+    }
+    
+    // Test weekly reminders on selected weekdays
+    func testWeeklyReminderScheduling() async throws {
+        let habit = Habit(
+            name: "Go to the Gym",
+            frequency: "Weekly",
+            weekdays: [2, 4, 6],
+            reminderEnabled: true,
+            reminderHour: 8,
+            reminderMinute: 30
+        )
+
+        let service = NotificationService.shared
+        defer { service.cancelReminders(for: habit) }
+
+        try await service.scheduleReminder(for: habit)
+
+        let requests = await UNUserNotificationCenter.current()
+            .pendingNotificationRequests()
+
+        let habitRequests = requests.filter {
+            $0.identifier.hasPrefix(habit.id.uuidString + "-")
+        }
+
+        XCTAssertEqual(habitRequests.count, 3)
+
+        let weekdays = habitRequests.compactMap {
+            ($0.trigger as? UNCalendarNotificationTrigger)?
+                .dateComponents.weekday
+        }
+
+        XCTAssertEqual(Set(weekdays), Set([2, 4, 6]))
+
+        for request in habitRequests {
+            let trigger = try XCTUnwrap(
+                request.trigger as? UNCalendarNotificationTrigger
+            )
+
+            XCTAssertEqual(trigger.dateComponents.hour, 8)
+            XCTAssertEqual(trigger.dateComponents.minute, 30)
+            XCTAssertTrue(trigger.repeats)
+        }
+    }
+
+    // Test changing an existing reminder time
+    func testUpdateReminderTime() async throws {
+        let habit = Habit(
+            name: "Exercise",
+            frequency: "Daily",
+            reminderEnabled: true,
+            reminderHour: 9,
+            reminderMinute: 0
+        )
+
+        let service = NotificationService.shared
+        defer { service.cancelReminders(for: habit) }
+
+        try await service.scheduleReminder(for: habit)
+
+        habit.reminderHour = 11
+        habit.reminderMinute = 45
+
+        try await service.scheduleReminder(for: habit)
+
+        let requests = await UNUserNotificationCenter.current()
+            .pendingNotificationRequests()
+
+        let reminderID = "\(habit.id.uuidString)-daily"
+
+        let habitRequests = requests.filter {
+            $0.identifier == reminderID
+        }
+
+        XCTAssertEqual(habitRequests.count, 1)
+
+        let reminder = try XCTUnwrap(habitRequests.first)
+
+        let trigger = try XCTUnwrap(
+            reminder.trigger as? UNCalendarNotificationTrigger
+        )
+
+        XCTAssertEqual(trigger.dateComponents.hour, 11)
+        XCTAssertEqual(trigger.dateComponents.minute, 45)
+    }
+
+    // Test disabling and canceling reminders
+    func testCancelReminder() async throws {
+        let habit = Habit(
+            name: "Drink Water",
+            frequency: "Daily",
+            reminderEnabled: true
+        )
+
+        let service = NotificationService.shared
+        defer { service.cancelReminders(for: habit) }
+
+        try await service.scheduleReminder(for: habit)
+
+        let before = await service.pendingReminderCount(for: habit)
+        XCTAssertEqual(before, 1)
+
+        habit.reminderEnabled = false
+
+        try await service.scheduleReminder(for: habit)
+
+        let after = await service.pendingReminderCount(for: habit)
+        XCTAssertEqual(after, 0)
+    }
+
 }
+
