@@ -2,13 +2,13 @@
 //  HabitActions.swift
 //  Ripple
 //
-//  Task 1 — Duty 1.2 / 1.5
+//  Task 1 — Duty 1.2 / 1.4 / 1.5
 //  Shared save/delete helpers so every screen changes habits the same way.
 //
 //  AI USE: Written with Claude (Anthropic), model Claude Opus 5.5.
-//  Prompt (paraphrased): "Build Task 1 piece 1 for our Ripple habit app —
-//  a Today screen with morning/afternoon/evening routines and add/edit/delete,
-//  saved with our team's existing SwiftData Habit model."
+//  Prompt (paraphrased): Used our Group 3 proposal and Ripple
+//  task sheet to help plan the file structure and build
+//  these files for our Ripple habit tracker app.
 //  AI-generated: this entire file.
 //
 
@@ -25,6 +25,41 @@ extension ModelContext {
             .map(\.sortOrder)
             .max() ?? -1
         return highest + 1
+    }
+
+    /// Checks a habit off for the day, or undoes it if it was already checked.
+    /// Each check-off is saved as a HabitCompletion, which Task 3 uses for
+    /// streaks and charts. Returns true if the habit is now complete.
+    @discardableResult
+    func toggleCompletion(for habit: Habit, on date: Date = Date()) -> Bool {
+        let habitID = habit.id
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+        guard let startOfNextDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else {
+            return false
+        }
+
+        let completionsThatDay = FetchDescriptor<HabitCompletion>(
+            predicate: #Predicate {
+                $0.habitID == habitID &&
+                $0.completedAt >= startOfDay &&
+                $0.completedAt < startOfNextDay
+            }
+        )
+        let existing = (try? fetch(completionsThatDay)) ?? []
+
+        if existing.isEmpty {
+            insert(HabitCompletion(habitID: habitID, completedAt: date))
+            try? save()
+            return true
+        } else {
+            // Undo: remove that day's completion.
+            for completion in existing {
+                delete(completion)
+            }
+            try? save()
+            return false
+        }
     }
 
     /// Deletes a habit, its completion history, and any pending reminders,

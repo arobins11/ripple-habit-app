@@ -6,9 +6,9 @@
 //  The three daily routines a habit can belong to.
 //
 //  AI USE: Written with Claude (Anthropic), model Claude Opus 5.5.
-//  Prompt (paraphrased): "Build Task 1 piece 1 for our Ripple habit app —
-//  a Today screen with morning/afternoon/evening routines and add/edit/delete,
-//  saved with our team's existing SwiftData Habit model."
+//  Prompt (paraphrased): Used our Group 3 proposal and Ripple
+//  task sheet to help plan the file structure and build
+//  these files for our Ripple habit tracker app.
 //  AI-generated: this entire file.
 //
 

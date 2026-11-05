@@ -2,13 +2,15 @@
 //  TodayView.swift
 //  Ripple
 //
-//  Task 1 — Duty 1.1 (Today screen), 1.2 (add/edit/delete), 1.5 (saved data)
-//  Shows today's quote and the user's habits grouped into routines.
+//  Task 1 — Duty 1.1 (Today screen), 1.2 (add/edit/delete),
+//  1.4 (routines + daily completion), 1.5 (saved data)
+//  Shows today's quote and the user's habits grouped into routines,
+//  with a checkbox to complete or undo each habit.
 //
 //  AI USE: Written with Claude (Anthropic), model Claude Opus 5.5.
-//  Prompt (paraphrased): "Build Task 1 piece 1 for our Ripple habit app —
-//  a Today screen with morning/afternoon/evening routines and add/edit/delete,
-//  saved with our team's existing SwiftData Habit model."
+//  Prompt (paraphrased): Used our Group 3 proposal and Ripple
+//  task sheet to help plan the file structure and build
+//  these files for our Ripple habit tracker app.
 //  AI-generated: this entire file.
 //
 
@@ -22,19 +24,30 @@ struct TodayView: View {
     /// Every saved habit, in the user's order. SwiftData keeps this up to date.
     @Query(sort: \Habit.sortOrder) private var habits: [Habit]
 
+    /// Saved completion history (Task 4's HabitCompletion model).
+    @Query private var completions: [HabitCompletion]
+
     @State private var quote: Quote?
     @State private var showingAddForm = false
     @State private var habitBeingEdited: Habit?
     @State private var habitToDeleteAfterSheet: Habit?
 
+    /// The routine that was just finished, shown in a short banner.
+    @State private var finishedRoutine: Routine?
+
     var body: some View {
+        let today = Date()
+        let doneToday = completedHabitIDs(on: today)
+
         NavigationStack {
             List {
                 quoteSection
 
                 ForEach(Routine.allCases) { routine in
-                    routineSection(routine)
+                    routineSection(routine, today: today, doneToday: doneToday)
                 }
+
+                notScheduledSection(today: today)
             }
             .navigationTitle("Today")
             .toolbar {
@@ -55,9 +68,21 @@ struct TodayView: View {
                     habitToDeleteAfterSheet = habit
                 }
             }
+            .overlay(alignment: .bottom) {
+                if let finishedRoutine {
+                    routineCompleteBanner(finishedRoutine)
+                }
+            }
+            .animation(.spring(duration: 0.4), value: finishedRoutine)
             .task {
                 // Task 4's QuoteService: cached for the day, fallback quote if offline.
                 quote = await QuoteService.shared.getDailyQuote()
+            }
+            .task(id: finishedRoutine) {
+                // Hide the banner after a moment.
+                guard finishedRoutine != nil else { return }
+                try? await Task.sleep(for: .seconds(2.5))
+                finishedRoutine = nil
             }
         }
     }
@@ -87,30 +112,111 @@ struct TodayView: View {
     }
 
     @ViewBuilder
-    private func routineSection(_ routine: Routine) -> some View {
-        let habitsInRoutine = habitsIn(routine)
+    private func routineSection(_ routine: Routine, today: Date, doneToday: Set<UUID>) -> some View {
+        let todaysHabits = habitsIn(routine).filter { $0.isScheduled(on: today) }
+        let doneCount = todaysHabits.filter { doneToday.contains($0.id) }.count
 
         Section {
-            if habitsInRoutine.isEmpty {
-                Text("No \(routine.rawValue.lowercased()) habits yet")
+            if todaysHabits.isEmpty {
+                Text("No \(routine.rawValue.lowercased()) habits today")
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(habitsInRoutine) { habit in
-                    Button {
-                        habitBeingEdited = habit
-                    } label: {
-                        HabitRow(habit: habit)
+                ForEach(todaysHabits) { habit in
+                    let isDone = doneToday.contains(habit.id)
+
+                    HStack(spacing: 12) {
+                        // Checkbox: complete or undo.
+                        Button {
+                            toggle(habit, routine: routine, routineHabits: todaysHabits,
+                                   doneToday: doneToday, today: today)
+                        } label: {
+                            CompletionCheckbox(isComplete: isDone)
+                        }
+                        .buttonStyle(.borderless)
+                        .sensoryFeedback(.selection, trigger: isDone)
+                        .accessibilityLabel(isDone ? "Undo \(habit.name)" : "Complete \(habit.name)")
+                        .accessibilityIdentifier("checkbox-\(habit.name)")
+
+                        // Rest of the row: open the edit form.
+                        Button {
+                            habitBeingEdited = habit
+                        } label: {
+                            HabitRow(habit: habit, isComplete: isDone)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
                 .onDelete { offsets in
                     for index in offsets {
-                        context.deleteHabitCompletely(habitsInRoutine[index])
+                        context.deleteHabitCompletely(todaysHabits[index])
                     }
                 }
             }
         } header: {
-            Label(routine.rawValue, systemImage: routine.symbol)
+            HStack {
+                Label(routine.rawValue, systemImage: routine.symbol)
+                Spacer()
+                if !todaysHabits.isEmpty {
+                    if doneCount == todaysHabits.count {
+                        Label("Done", systemImage: "checkmark.seal.fill")
+                            .foregroundStyle(.green)
+                    } else {
+                        Text("\(doneCount) of \(todaysHabits.count)")
+                    }
+                }
+            }
+        }
+    }
+
+    /// Weekday habits that aren't due today, so they can still be edited.
+    @ViewBuilder
+    private func notScheduledSection(today: Date) -> some View {
+        let otherDayHabits = habits.filter { !$0.isScheduled(on: today) }
+
+        if !otherDayHabits.isEmpty {
+            Section {
+                ForEach(otherDayHabits) { habit in
+                    Button {
+                        habitBeingEdited = habit
+                    } label: {
+                        HabitRow(habit: habit)
+                            .opacity(0.5)
+                    }
+                    .buttonStyle(.plain)
+                }
+            } header: {
+                Text("Not scheduled today")
+            } footer: {
+                Text("These habits only appear on the days you picked.")
+            }
+        }
+    }
+
+    private func routineCompleteBanner(_ routine: Routine) -> some View {
+        // TASK 3: swap this for CelebrationView (confetti) once it's ready.
+        Label("\(routine.rawValue) routine complete!", systemImage: "party.popper.fill")
+            .font(.headline)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(.thinMaterial, in: Capsule())
+            .padding(.bottom, 24)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+            .accessibilityIdentifier("routineCompleteBanner")
+    }
+
+    // MARK: - Actions
+
+    private func toggle(_ habit: Habit, routine: Routine, routineHabits: [Habit],
+                        doneToday: Set<UUID>, today: Date) {
+        let isNowComplete = context.toggleCompletion(for: habit, on: today)
+        guard isNowComplete else { return }   // undo never celebrates
+
+        // Was this the last unchecked habit in the routine?
+        let routineFinished = routineHabits.allSatisfy {
+            $0.id == habit.id || doneToday.contains($0.id)
+        }
+        if routineFinished {
+            finishedRoutine = routine
         }
     }
 
@@ -118,6 +224,16 @@ struct TodayView: View {
 
     private func habitsIn(_ routine: Routine) -> [Habit] {
         habits.filter { Routine(savedValue: $0.routine) == routine }
+    }
+
+    /// IDs of the habits completed on the given day.
+    private func completedHabitIDs(on date: Date) -> Set<UUID> {
+        let calendar = Calendar.current
+        return Set(
+            completions
+                .filter { calendar.isDate($0.completedAt, inSameDayAs: date) }
+                .map(\.habitID)
+        )
     }
 
     /// Deletes a habit chosen from the edit form, once that form has closed.

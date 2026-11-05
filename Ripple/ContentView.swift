@@ -10,10 +10,6 @@
 //  This stays the root view so Task 2 can still wrap it with
 //  `ContentView().rippleOnboarding()` in RippleApp.swift.
 //
-//  AI USE: Written with Claude (Anthropic), model Claude Opus 5.5.
-//  Prompt (paraphrased): "Make the Today screen the app's main screen."
-//  AI-generated: the body of this view (it now shows TodayView).
-//
 
 import SwiftUI
 

@@ -6,9 +6,9 @@
 //  (routine picker). Frequency, weekdays, icon and reminder come in 1.3.
 //
 //  AI USE: Written with Claude (Anthropic), model Claude Opus 5.5.
-//  Prompt (paraphrased): "Build Task 1 piece 1 for our Ripple habit app —
-//  a Today screen with morning/afternoon/evening routines and add/edit/delete,
-//  saved with our team's existing SwiftData Habit model."
+//  Prompt (paraphrased): Used our Group 3 proposal and Ripple
+//  task sheet to help plan the file structure and build
+//  these files for our Ripple habit tracker app.
 //  AI-generated: this entire file.
 //
 
@@ -126,6 +126,7 @@ struct HabitFormView: View {
             let newHabit = Habit(
                 name: cleanName,
                 routine: routine.rawValue,
+                icon: "leaf",   // not a checkmark, so it isn't mistaken for the checkbox
                 sortOrder: context.nextSortOrder(for: routine)
             )
             context.insert(newHabit)
