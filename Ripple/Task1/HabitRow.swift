@@ -2,7 +2,7 @@
 //  HabitRow.swift
 //  Ripple
 //
-//  Task 1 — Duty 1.1 / 1.4
+//  Task 1 — Duty 1.1 / 1.3 / 1.4
 //  One habit in the Today list (icon + name). The checkbox sits beside it
 //  in TodayView so tapping the name opens the edit form instead.
 //
@@ -27,10 +27,27 @@ struct HabitRow: View {
                 .foregroundStyle(.tint)
                 .frame(width: 28)
 
-            Text(habit.name)
-                .strikethrough(isComplete)
-                .foregroundStyle(isComplete ? .secondary : .primary)
-                .lineLimit(2)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(habit.name)
+                    .strikethrough(isComplete)
+                    .foregroundStyle(isComplete ? .secondary : .primary)
+                    .lineLimit(2)
+
+                // Habit settings at a glance (Duty 1.3): picked days and reminder time.
+                if habit.weekdaySummary != nil || habit.reminderTimeText != nil {
+                    HStack(spacing: 8) {
+                        if let days = habit.weekdaySummary {
+                            Label(days, systemImage: "calendar")
+                        }
+                        if let time = habit.reminderTimeText {
+                            Label(time, systemImage: "bell")
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .labelStyle(.titleAndIcon)
+                }
+            }
 
             Spacer(minLength: 0)
         }

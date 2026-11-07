@@ -2,7 +2,7 @@
 //  HabitActions.swift
 //  Ripple
 //
-//  Task 1 — Duty 1.2 / 1.4 / 1.5
+//  Task 1 — Duty 1.2 / 1.3 / 1.4 / 1.5
 //  Shared save/delete helpers so every screen changes habits the same way.
 //
 //  AI USE: Written with Claude (Anthropic), model Claude Opus 5.5.
@@ -25,6 +25,15 @@ extension ModelContext {
             .map(\.sortOrder)
             .max() ?? -1
         return highest + 1
+    }
+
+    /// Saves a new order for habits after the user drags them (Duty 1.3).
+    /// The first habit in the list gets sortOrder 0, the next 1, and so on.
+    func saveOrder(_ habitsInNewOrder: [Habit]) {
+        for (index, habit) in habitsInNewOrder.enumerated() where habit.sortOrder != index {
+            habit.sortOrder = index
+        }
+        try? save()
     }
 
     /// Checks a habit off for the day, or undoes it if it was already checked.
