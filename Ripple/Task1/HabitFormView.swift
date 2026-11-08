@@ -63,7 +63,9 @@ struct HabitFormView: View {
 
     /// A habit needs a name, and a weekday habit needs at least one day.
     private var canSave: Bool {
-        !trimmedName.isEmpty && (repeatsDaily || !weekdays.isEmpty)
+        !trimmedName.isEmpty
+            && trimmedName.count <= Self.maxNameLength
+            && (repeatsDaily || !weekdays.isEmpty)
     }
 
     /// Keeps the habit's current icon in the grid even if it isn't a default option
@@ -115,6 +117,7 @@ struct HabitFormView: View {
                     onDelete?()
                     dismiss()
                 }
+                .accessibilityIdentifier("confirmDeleteHabitButton")
             }
         }
     }
@@ -125,17 +128,18 @@ struct HabitFormView: View {
         Section {
             TextField("e.g. Drink a glass of water", text: $name)
                 .accessibilityIdentifier("habitNameField")
-                .onChange(of: name) { _, newValue in
-                    // Input validation: cap very long names.
-                    if newValue.count > Self.maxNameLength {
-                        name = String(newValue.prefix(Self.maxNameLength))
-                    }
-                }
         } header: {
             Text("Habit name")
         } footer: {
+            // Input validation: names must not be empty or longer than the limit.
+            // (Cutting the text off while typing isn't reliable in iOS text fields,
+            // so the form explains the limit and disables Save instead.)
             if trimmedName.isEmpty {
                 Text("A habit needs a name before it can be saved.")
+            } else if trimmedName.count > Self.maxNameLength {
+                Text("Names can be up to \(Self.maxNameLength) characters. This one has \(trimmedName.count).")
+                    .foregroundStyle(.red)
+                    .accessibilityIdentifier("nameTooLongMessage")
             }
         }
     }

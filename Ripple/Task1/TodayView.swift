@@ -150,6 +150,7 @@ struct TodayView: View {
                             HabitRow(habit: habit, isComplete: isDone)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier("habitRow-\(habit.name)")
                     }
                 }
                 .onDelete { offsets in
