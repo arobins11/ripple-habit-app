@@ -2,7 +2,7 @@
 //  TodayView.swift
 //  Ripple
 //
-//  Task 1 — Duty 1.1 (Today screen), 1.2 (add/edit/delete),
+//  Task 1 — Duty 1.1 (Today screen), 1.2 (add/edit/delete), 1.3 (reorder),
 //  1.4 (routines + daily completion), 1.5 (saved data)
 //  Shows today's quote and the user's habits grouped into routines,
 //  with a checkbox to complete or undo each habit.
@@ -51,6 +51,11 @@ struct TodayView: View {
             }
             .navigationTitle("Today")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    // Edit mode shows drag handles to reorder habits (and delete buttons).
+                    EditButton()
+                        .accessibilityIdentifier("editHabitsButton")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showingAddForm = true
@@ -107,7 +112,8 @@ struct TodayView: View {
             }
         } header: {
             // Today's date, e.g. "Wednesday, November 4"
-            Text(Date(), format: .dateTime.weekday(.wide).month(.wide).day())
+            // Made by Anthony Robinson II
+            Text(Date(), format: .dateTime.weekday(.wide).month(.wide).day().year())
         }
     }
 
@@ -144,12 +150,16 @@ struct TodayView: View {
                             HabitRow(habit: habit, isComplete: isDone)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier("habitRow-\(habit.name)")
                     }
                 }
                 .onDelete { offsets in
                     for index in offsets {
                         context.deleteHabitCompletely(todaysHabits[index])
                     }
+                }
+                .onMove { source, destination in
+                    reorder(routine, visibleHabits: todaysHabits, from: source, to: destination)
                 }
             }
         } header: {
@@ -218,6 +228,19 @@ struct TodayView: View {
         if routineFinished {
             finishedRoutine = routine
         }
+    }
+
+    /// Saves the new order after the user drags a habit within a routine.
+    /// Habits not scheduled today keep their place at the end of the routine.
+    private func reorder(_ routine: Routine, visibleHabits: [Habit],
+                         from source: IndexSet, to destination: Int) {
+        var newOrder = visibleHabits
+        newOrder.move(fromOffsets: source, toOffset: destination)
+
+        let visibleIDs = Set(visibleHabits.map(\.id))
+        let hiddenToday = habitsIn(routine).filter { !visibleIDs.contains($0.id) }
+
+        context.saveOrder(newOrder + hiddenToday)
     }
 
     // MARK: - Helpers
