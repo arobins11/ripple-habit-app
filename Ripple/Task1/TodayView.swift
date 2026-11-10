@@ -5,7 +5,8 @@
 //  Task 1 — Duty 1.1 (Today screen), 1.2 (add/edit/delete), 1.3 (reorder),
 //  1.4 (routines + daily completion), 1.5 (saved data)
 //  Shows today's quote and the user's habits grouped into routines,
-//  with a checkbox to complete or undo each habit.
+//  with a checkbox to complete or undo each habit (Task 2's animated
+//  checkmark is used for the checkbox itself).
 //
 //  AI USE: Written with Claude (Anthropic), model Claude Opus 5.5.
 //  Prompt (paraphrased): Used our Group 3 proposal and Ripple
@@ -132,11 +133,14 @@ struct TodayView: View {
 
                     HStack(spacing: 12) {
                         // Checkbox: complete or undo.
+                        // Task 2 (Kelsey): HabitCompletionCheckmark draws the
+                        // circle/checkmark and plays the completion animation.
+                        // It is display-only, so this Button still does the work.
                         Button {
                             toggle(habit, routine: routine, routineHabits: todaysHabits,
                                    doneToday: doneToday, today: today)
                         } label: {
-                            CompletionCheckbox(isComplete: isDone)
+                            HabitCompletionCheckmark(isComplete: isDone)
                         }
                         .buttonStyle(.borderless)
                         .sensoryFeedback(.selection, trigger: isDone)
