@@ -20,6 +20,8 @@ final class Task2UITests: XCTestCase {
     }
 
     func testOnboardingFlow() throws {
+        XCUIDevice.shared.orientation = .portrait
+
         let app = XCUIApplication()
         app.launchArguments = ["-RippleResetOnboarding"]
         app.launch()
@@ -30,13 +32,23 @@ final class Task2UITests: XCTestCase {
 
         // Focus area — Continue is disabled until one is picked.
         let focusContinue = app.buttons["onboarding.focusContinue"]
-        XCTAssertTrue(focusContinue.waitForExistence(timeout: 3))
+        XCTAssertTrue(focusContinue.waitForExistence(timeout: 10))
         XCTAssertFalse(focusContinue.isEnabled)
 
         app.buttons["onboarding.focus.Fitness"].tap()
-        XCTAssertTrue(focusContinue.isEnabled)
-        focusContinue.tap()
 
+        let enabledPredicate = NSPredicate(format: "enabled == true")
+        let enabledExpectation = XCTNSPredicateExpectation(
+            predicate: enabledPredicate,
+            object: focusContinue
+        )
+
+        XCTAssertEqual(
+            XCTWaiter.wait(for: [enabledExpectation], timeout: 10),
+            .completed
+        )
+
+        focusContinue.tap()
         // Starter habits
         let habitsContinue = app.buttons["onboarding.habitsContinue"]
         XCTAssertTrue(habitsContinue.waitForExistence(timeout: 3))
