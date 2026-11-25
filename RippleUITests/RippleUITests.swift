@@ -40,9 +40,7 @@ final class RippleUITests: XCTestCase {
     @MainActor
     func testLaunchPerformance() throws {
         measure(metrics: [XCTApplicationLaunchMetric()]) {
-            let app = XCUIApplication()
-            app.launch()
-            app.terminate()
+            XCUIApplication().launch()
         }
     }
 }
