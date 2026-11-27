@@ -45,18 +45,13 @@ struct JournalEntryEditor: View {
                 }
             }
         }
+        .scrollDismissesKeyboard(.interactively)
         .navigationTitle(Text(day, format: .dateTime.month().day()))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save", action: save)
                     .accessibilityIdentifier("journal.save")
-            }
-            ToolbarItem(placement: .keyboard) {
-                HStack {
-                    Spacer()
-                    Button("Done") { isEditorFocused = false }
-                }
             }
         }
         .onAppear(perform: loadExisting)
